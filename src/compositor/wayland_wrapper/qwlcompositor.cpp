@@ -286,6 +286,15 @@ void Compositor::cleanupGraphicsResources()
     m_destroyed_surfaces.clear();
 }
 
+bool Compositor::event(QEvent *e)
+{
+    if (e->type() == QEvent::User) {
+        static_cast<Surface::DeleteGuard *>(e)->surface->leaveDeleteGuard();
+        return true;
+    }
+    return QObject::event(e);
+}
+
 void Compositor::destroyClient(WaylandClient *c)
 {
     wl_client *client = static_cast<wl_client *>(c);

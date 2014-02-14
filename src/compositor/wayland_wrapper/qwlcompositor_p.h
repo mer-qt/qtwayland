@@ -157,6 +157,8 @@ public:
     void feedRetainedSelectionData(QMimeData *data);
 
     void bufferWasDestroyed(SurfaceBuffer *buffer) { m_destroyed_buffers << buffer; }
+
+    bool event(QEvent *e);
 public slots:
     void cleanupGraphicsResources();
 
