@@ -195,6 +195,10 @@ Compositor::Compositor(QWaylandCompositor *qt_compositor, QWaylandCompositor::Ex
     qRegisterMetaType<SurfaceBuffer*>("SurfaceBuffer*");
     //initialize distancefieldglyphcache here
 
+    QWindow *window = qt_compositor->window();
+    if (window)
+        connect(window, SIGNAL(visibleChanged(bool)), this, SLOT(visibilityChanged(bool)));
+
 #ifdef QT_COMPOSITOR_QUICK
     if (QQuickWindow *w = qobject_cast<QQuickWindow *>(qt_compositor->window())) {
         connect(w, SIGNAL(beforeSynchronizing()), this, SLOT(cleanupGraphicsResources()), Qt::DirectConnection);
@@ -221,6 +225,12 @@ Compositor::~Compositor()
 
     delete m_output_global;
     delete m_display;
+}
+
+void Compositor::visibilityChanged(bool visible)
+{
+    foreach (Surface *s, m_surfaces)
+        s->setCompositorVisible(visible);
 }
 
 void Compositor::sendFrameCallbacks(QList<QWaylandSurface *> visibleSurfaces)

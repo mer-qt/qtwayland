@@ -161,6 +161,7 @@ public:
     bool event(QEvent *e);
 public slots:
     void cleanupGraphicsResources();
+    void visibilityChanged(bool);
 
 private slots:
     void processWaylandEvents();

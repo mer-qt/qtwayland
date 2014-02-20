@@ -152,6 +152,8 @@ public:
     void enterDeleteGuard();
     void leaveDeleteGuard();
 
+    void setCompositorVisible(bool visible);
+
 private:
     Q_DISABLE_COPY(Surface)
 
