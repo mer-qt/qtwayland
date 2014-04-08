@@ -195,6 +195,10 @@ Compositor::Compositor(QWaylandCompositor *qt_compositor, QWaylandCompositor::Ex
     qRegisterMetaType<SurfaceBuffer*>("SurfaceBuffer*");
     //initialize distancefieldglyphcache here
 
+    QWindow *window = qt_compositor->window();
+    if (window)
+        connect(window, SIGNAL(visibleChanged(bool)), this, SLOT(visibilityChanged(bool)));
+
 #ifdef QT_COMPOSITOR_QUICK
     if (QQuickWindow *w = qobject_cast<QQuickWindow *>(qt_compositor->window())) {
         connect(w, SIGNAL(beforeSynchronizing()), this, SLOT(cleanupGraphicsResources()), Qt::DirectConnection);
@@ -221,6 +225,12 @@ Compositor::~Compositor()
 
     delete m_output_global;
     delete m_display;
+}
+
+void Compositor::visibilityChanged(bool visible)
+{
+    foreach (Surface *s, m_surfaces)
+        s->setCompositorVisible(visible);
 }
 
 void Compositor::sendFrameCallbacks(QList<QWaylandSurface *> visibleSurfaces)
@@ -254,20 +264,6 @@ void Compositor::processWaylandEvents()
 
 void Compositor::destroySurface(Surface *surface)
 {
-    InputDevice *dev = defaultInputDevice();
-    if (dev->mouseFocus() == surface) {
-        dev->setMouseFocus(0, QPointF(), QPointF());
-        // Make sure the surface is reset regardless of what the grabber
-        // interface's focus() does. (e.g. the default implementation does
-        // nothing when a button is down which would be disastrous here)
-        dev->pointerDevice()->setFocus(0, QPointF());
-    }
-    if (dev->pointerDevice()->current() == surface) {
-        dev->pointerDevice()->setCurrent(0, QPointF());
-    }
-    if (dev->keyboardFocus() == surface)
-        dev->setKeyboardFocus(0);
-
     m_surfaces.removeOne(surface);
 
     waylandCompositor()->surfaceAboutToBeDestroyed(surface->waylandSurface());
@@ -284,6 +280,15 @@ void Compositor::cleanupGraphicsResources()
 
     qDeleteAll(m_destroyed_surfaces);
     m_destroyed_surfaces.clear();
+}
+
+bool Compositor::event(QEvent *e)
+{
+    if (e->type() == QEvent::User) {
+        static_cast<Surface::DeleteGuard *>(e)->surface->leaveDeleteGuard();
+        return true;
+    }
+    return QObject::event(e);
 }
 
 void Compositor::destroyClient(WaylandClient *c)

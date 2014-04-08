@@ -95,12 +95,20 @@ public:
     void motion(uint32_t time, int touch_id, const QPointF &position);
 
 private:
+    static void focusDestroyed(wl_listener *listener, void *data);
+
     Compositor *m_compositor;
 
     Surface *m_focus;
     Resource *m_focusResource;
 
     TouchGrabber *m_grab;
+    struct Listener
+    {
+        wl_listener listener;
+        Touch *parent;
+    };
+    Listener m_focusDestroyListener;
 };
 
 } // namespace QtWayland

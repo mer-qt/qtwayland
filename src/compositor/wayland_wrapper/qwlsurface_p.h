@@ -78,6 +78,13 @@ class FrameCallback;
 class Q_COMPOSITOR_EXPORT Surface : public QtWaylandServer::wl_surface
 {
 public:
+
+    class DeleteGuard : public QEvent {
+    public:
+        DeleteGuard(Surface *s) : QEvent(User), surface(s) { }
+        Surface *surface;
+    };
+
     Surface(struct wl_client *client, uint32_t id, Compositor *compositor);
     ~Surface();
 
@@ -141,6 +148,14 @@ public:
 
     void advanceBufferQueue();
     void releaseSurfaces();
+    void releaseFrontBuffer();
+    bool isFrontBufferReleased() const { return m_visible && !m_frontBuffer; }
+
+    void enterDeleteGuard();
+    void leaveDeleteGuard();
+    inline bool isDestroyed() const { return m_destroyed; }
+
+    void setCompositorVisible(bool visible);
 
 private:
     Q_DISABLE_COPY(Surface)
@@ -176,7 +191,14 @@ private:
     bool m_transientInactive;
     bool m_isCursorSurface;
 
-    inline SurfaceBuffer *currentSurfaceBuffer() const;
+    bool m_visible;
+    bool m_invertY;
+    QWaylandSurface::Type m_bufferType;
+
+    bool m_surfaceWasDestroyed;
+    bool m_deleteGuard;
+    bool m_destroyed;
+
     void damage(const QRect &rect);
     void setBackBuffer(SurfaceBuffer *buffer);
     SurfaceBuffer *createSurfaceBuffer(struct ::wl_resource *buffer);
@@ -199,10 +221,6 @@ private:
     void surface_commit(Resource *resource) Q_DECL_OVERRIDE;
 
 };
-
-inline SurfaceBuffer *Surface::currentSurfaceBuffer() const {
-    return m_backBuffer? m_backBuffer : m_frontBuffer;
-}
 
 }
 

@@ -368,11 +368,14 @@ void QWaylandSurfaceItem::updateTexture()
                 opt |= QQuickWindow::TextureHasAlphaChannel;
             }
             texture = window()->createTextureFromId(m_surface->texture(), m_surface->size(), opt);
-        } else {
+            texture->bind();
+            delete oldTexture;
+        } else if (m_surface->type() == QWaylandSurface::Shm && !m_surface->handle()->isFrontBufferReleased()){
             texture = window()->createTextureFromImage(m_surface->image());
+            texture->bind();
+            m_surface->handle()->releaseFrontBuffer();
+            delete oldTexture;
         }
-        texture->bind();
-        delete oldTexture;
     }
 
     m_provider->t = texture;
@@ -386,6 +389,8 @@ QSGNode *QWaylandSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         delete oldNode;
         return 0;
     }
+
+    bool invertY = surface()->isYInverted();
 
     // Order here is important, as the state of visible is that of the pending
     // buffer but will be replaced after we advance the buffer queue.
@@ -404,7 +409,7 @@ QSGNode *QWaylandSurfaceItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     if (!node)
         node = new QSGSimpleTextureNode();
     node->setTexture(m_provider->t);
-    if (surface()->isYInverted()) {
+    if (invertY) {
         node->setRect(0, height(), width(), -height());
     } else {
         node->setRect(0, 0, width(), height());
