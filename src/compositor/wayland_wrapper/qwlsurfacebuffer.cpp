@@ -96,7 +96,6 @@ void SurfaceBuffer::initialize(struct ::wl_resource *buffer)
     m_destroy_listener.listener.notify = destroy_listener_callback;
     if (buffer)
         wl_signal_add(&buffer->destroy_signal, &m_destroy_listener.listener);
-    m_damageRect = QRect();
 }
 
 void SurfaceBuffer::destructBufferState()
@@ -171,18 +170,6 @@ void SurfaceBuffer::disown()
 void SurfaceBuffer::setDisplayed()
 {
     m_is_displayed = true;
-    m_damageRect = QRect();
-}
-
-void SurfaceBuffer::setDamage(const QRect &rect)
-{
-    if (m_damageRect.isValid()) {
-        m_damageRect = m_damageRect.united(rect);
-    } else {
-        m_damageRect = rect;
-    }
-    m_image = QImage();
-
 }
 
 void SurfaceBuffer::destroyTexture()
@@ -255,8 +242,6 @@ QImage SurfaceBuffer::image()
 void SurfaceBuffer::bufferWasDestroyed()
 {
     destroyTexture();
-    m_destroyed = true;
-    m_buffer = 0;
 }
 
 void SurfaceBuffer::destroy_listener_callback(wl_listener *listener, void *data)
@@ -265,7 +250,15 @@ void SurfaceBuffer::destroy_listener_callback(wl_listener *listener, void *data)
     struct surface_buffer_destroy_listener *destroy_listener =
             reinterpret_cast<struct surface_buffer_destroy_listener *>(listener);
     SurfaceBuffer *d = destroy_listener->surfaceBuffer;
-    d->m_compositor->bufferWasDestroyed(d);
+
+    // Mark the buffer as destroyed and clear m_buffer right away to avoid
+    // touching it before it is properly cleaned up.
+    // Then, if it has a texture, schedule the texture to be released on the
+    // render thread later on.
+    d->m_destroyed = true;
+    d->m_buffer = 0;
+    if (d->m_texture)
+        d->m_compositor->bufferWasDestroyed(d);
 }
 
 void SurfaceBuffer::createTexture()

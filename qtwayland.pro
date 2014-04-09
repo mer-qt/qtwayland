@@ -9,12 +9,14 @@ qtCompileTest(brcm_egl)
 qtCompileTest(glx)
 qtCompileTest(xcomposite)
 qtCompileTest(drm_egl_server)
+qtCompileTest(libhybris_egl_server)
 
 !config_wayland: error("QtWayland requires Wayland 1.3.0 or higher")
 !config_wayland_scanner: error("QtWayland requires wayland-scanner")
 !config_wayland_cursor: error("QtWayland requires wayland-cursor")
 
 load(qt_parts)
+
 
 
 !config_xkbcommon {

@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Jolla Ltd, author: <giulio.camuffo@jollamobile.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of the Qt Compositor.
@@ -38,31 +38,16 @@
 **
 ****************************************************************************/
 
-#ifndef TEXTUREBLITTER_H
-#define TEXTUREBLITTER_H
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <hybris/eglplatformcommon/hybris_nativebufferext.h>
 
-#include <QtGui/QMatrix4x4>
-
-#include <QtGui/qopengl.h>
-
-class QOpenGLShaderProgram;
-class TextureBlitter
+int main()
 {
-public:
-    TextureBlitter();
-    void bind();
-    void release();
-    void drawTexture(int textureId, const QRectF &sourceGeometry,
-                     const QSize &targetRect, int depth,
-                     bool targethasInvertedY, bool sourceHasInvertedY);
-
-private:
-    QOpenGLShaderProgram *m_shaderProgram;
-    QMatrix4x4 m_transformMatrix;
-
-    int m_matrixLocation;
-    int m_vertexCoordEntry;
-    int m_textureCoordEntry;
-};
-
-#endif // TEXTUREBLITTER_H
+#ifdef EGL_HYBRIS_native_buffer
+    return 0;
+#else
+#error Requires EGL_HYBRIS_native_buffer to be defined
+    return 1;
+#endif
+}

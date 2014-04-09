@@ -104,10 +104,10 @@ QWaylandSurface::QWaylandSurface(QtWayland::Surface *surface)
 #endif
 }
 
-void QWaylandSurface::advanceBufferQueue()
+void QWaylandSurface::swapBuffers()
 {
     Q_D(const QWaylandSurface);
-    d->surface->advanceBufferQueue();
+    d->surface->swapBuffers();
 }
 
 WaylandClient *QWaylandSurface::client() const
@@ -148,8 +148,13 @@ bool QWaylandSurface::isYInverted() const
 
 bool QWaylandSurface::visible() const
 {
+    return isMapped();
+}
+
+bool QWaylandSurface::isMapped() const
+{
     Q_D(const QWaylandSurface);
-    return d->surface->visible();
+    return d->surface->mapped();
 }
 
 QPointF QWaylandSurface::pos() const
@@ -255,6 +260,10 @@ QObject *QWaylandSurface::windowPropertyMap() const
 
 qint64 QWaylandSurface::processId() const
 {
+    Q_D(const QWaylandSurface);
+    if (d->surface->isDestroyed())
+        return -1;
+
     struct wl_client *client = static_cast<struct wl_client *>(this->client());
     pid_t pid;
     wl_client_get_credentials(client,&pid, 0,0);
