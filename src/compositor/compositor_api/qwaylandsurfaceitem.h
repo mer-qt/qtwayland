@@ -112,7 +112,7 @@ private slots:
     void surfaceMapped();
     void surfaceUnmapped();
     void surfaceDestroyed(QObject *object);
-    void surfaceDamaged(const QRect &);
+    void surfaceDamaged(const QRegion &);
     void parentChanged(QWaylandSurface *newParent, QWaylandSurface *oldParent);
     void updateSize();
     void updateSurfaceSize();
@@ -141,7 +141,6 @@ private:
     QWaylandSurface *m_surface;
     QWaylandSurfaceTextureProvider *m_provider;
     bool m_paintEnabled;
-    bool m_mapped;
     bool m_useTextureAlpha;
     bool m_clientRenderingEnabled;
     bool m_touchEventsEnabled;
