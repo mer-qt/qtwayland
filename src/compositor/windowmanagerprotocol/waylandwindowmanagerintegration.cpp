@@ -43,6 +43,7 @@
 #include <wayland_wrapper/qwldisplay_p.h>
 #include <wayland_wrapper/qwlcompositor_p.h>
 
+#include <compositor_api/qwaylandclient.h>
 #include <compositor_api/qwaylandcompositor.h>
 
 #include <wayland-server.h>
@@ -104,7 +105,7 @@ void WindowManagerServerIntegration::windowmanager_open_url(Resource *resource, 
         m_urls.insert(resource, url);
     else {
         m_urls.remove(resource);
-        m_compositor->openUrl(resource->client(), QUrl(url));
+        m_compositor->openUrl(QWaylandClient::fromWlClient(resource->client()), QUrl(url));
     }
 }
 

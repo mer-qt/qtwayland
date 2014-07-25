@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of the Qt Compositor.
@@ -38,23 +38,50 @@
 **
 ****************************************************************************/
 
-#ifndef WAYLANDEXPORT_H
-#define WAYLANDEXPORT_H
+#ifndef QWAYLANDCLIENT_H
+#define QWAYLANDCLIENT_H
 
-#include <QtCore/qglobal.h>
+#include <QtCompositor/qwaylandexport.h>
+
+#include <QObject>
+
+#include <signal.h>
+
+#include <wayland-server.h>
 
 QT_BEGIN_NAMESPACE
 
-#if !defined(Q_COMPOSITOR_EXPORT)
-#  if defined(QT_SHARED) && defined(QT_BUILD_COMPOSITOR_LIB)
-#    define Q_COMPOSITOR_EXPORT Q_DECL_EXPORT
-#  elif defined(QT_SHARED)
-#    define Q_COMPOSITOR_EXPORT Q_DECL_IMPORT
-#  else
-#    define Q_COMPOSITOR_EXPORT
-#  endif
-#endif
+class QWaylandClientPrivate;
+
+class Q_COMPOSITOR_EXPORT QWaylandClient : public QObject
+{
+    Q_OBJECT
+    Q_DECLARE_PRIVATE(QWaylandClient)
+
+    Q_PROPERTY(qint64 userId READ userId CONSTANT)
+    Q_PROPERTY(qint64 groupId READ groupId CONSTANT)
+    Q_PROPERTY(qint64 processId READ processId CONSTANT)
+public:
+    ~QWaylandClient();
+
+    static QWaylandClient *fromWlClient(wl_client *wlClient);
+
+    wl_client *client() const;
+
+    qint64 userId() const;
+    qint64 groupId() const;
+
+    qint64 processId() const;
+
+    Q_INVOKABLE void kill(int sig = SIGTERM);
+
+public Q_SLOTS:
+    void close();
+
+private:
+    explicit QWaylandClient(wl_client *client);
+};
 
 QT_END_NAMESPACE
 
-#endif //WAYLANDEXPORT_H
+#endif // QWAYLANDCLIENT_H
