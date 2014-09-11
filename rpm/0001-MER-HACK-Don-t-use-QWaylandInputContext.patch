@@ -1,0 +1,29 @@
+From c5204fd8d1748c8fa67a004d099e4f48ac07fd62 Mon Sep 17 00:00:00 2001
+From: Robin Burchell <robin+git@viroteck.net>
+Date: Thu, 16 Jan 2014 15:31:04 +0100
+Subject: [PATCH] MER: HACK: Don't use QWaylandInputContext
+
+We want to use Maliit.
+
+Change-Id: I10d50229a131feeb3c10d061aac5d805bb936849
+---
+ src/client/qwaylandintegration.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/client/qwaylandintegration.cpp b/src/client/qwaylandintegration.cpp
+index d9bf82e..4f0036f 100644
+--- a/src/client/qwaylandintegration.cpp
++++ b/src/client/qwaylandintegration.cpp
+@@ -128,7 +128,8 @@ QWaylandIntegration::QWaylandIntegration()
+     mClipboard = new QWaylandClipboard(mDisplay);
+     mDrag = new QWaylandDrag(mDisplay);
+ 
+-    mInputContext.reset(new QWaylandInputContext(mDisplay));
++    //mInputContext.reset(new QWaylandInputContext(mDisplay));
++    mInputContext.reset(QPlatformInputContextFactory::create());
+ }
+ 
+ QWaylandIntegration::~QWaylandIntegration()
+-- 
+2.1.0
+

@@ -27,6 +27,10 @@ BuildRequires:  fdupes
 
 Requires:       xkeyboard-config
 
+Patch0: 0001-MER-HACK-Don-t-use-QWaylandInputContext.patch
+Patch1: 0001-MER-Revert-Support-RasterGLSurface-windows.patch
+Patch2: 0001-MER-Revert-The-QWindowSystemInterface-API-changed-ma.patch
+
 %description
 Qt is a cross-platform application and UI framework. Using Qt, you can
 write web-enabled applications once and deploy them across desktop,
@@ -60,16 +64,22 @@ This package contains the Qt wayland compositor examples for wayland_egl
 
 %prep
 %setup -q -n %{name}-%{version}
+cd qtwayland
+%patch0 -p1
+%patch1 -p1
+%patch2 -p1
 
 %build
+cd qtwayland
 export QTDIR=/usr/share/qt5
 export QT_WAYLAND_GL_CONFIG=wayland_egl
 touch .git
-%qmake5 "QT_BUILD_PARTS += examples" "CONFIG += wayland-compositor" 
+%qmake5 "QT_BUILD_PARTS += examples" "CONFIG += wayland-compositor"
 
 make %{?_smp_mflags}
 
 %install
+cd qtwayland
 rm -rf %{buildroot}
 %qmake_install
 
@@ -84,8 +94,8 @@ find %{buildroot}%{_libdir} -type f -name '*.prl' \
 
 # We don't need qt5/Qt/
 rm -rf %{buildroot}/%{_includedir}/qt5/Qt
-rm -f %{buildroot}/%{_libdir}/qt5/plugins/wayland-graphics-integration/server/liblibhybris-egl-server.so
-rm -f %{buildroot}/%{_libdir}/qt5/plugins/wayland-graphics-integration/client/liblibhybris-egl-server.so
+rm -f %{buildroot}/%{_libdir}/qt5/plugins/wayland-graphics-integration-server/liblibhybris-egl-server.so
+rm -f %{buildroot}/%{_libdir}/qt5/plugins/wayland-graphics-integration-client/liblibhybris-egl-server.so
 
 
 %fdupes %{buildroot}/%{_includedir}
@@ -103,10 +113,10 @@ rm -f %{buildroot}/%{_libdir}/qt5/plugins/wayland-graphics-integration/client/li
 
 %if "%{name}" == "qt5-qtwayland-wayland_egl"
 %{_libdir}/qt5/plugins/platforms/libqwayland-egl.so
-%{_libdir}/qt5/plugins/wayland-graphics-integration/client/libdrm-egl-server.so
-%{_libdir}/qt5/plugins/wayland-graphics-integration/client/libwayland-egl.so
-%{_libdir}/qt5/plugins/wayland-graphics-integration/server/libdrm-egl-server.so
-%{_libdir}/qt5/plugins/wayland-graphics-integration/server/libwayland-egl.so
+%{_libdir}/qt5/plugins/wayland-graphics-integration-client/libdrm-egl-server.so
+%{_libdir}/qt5/plugins/wayland-graphics-integration-client/libwayland-egl.so
+%{_libdir}/qt5/plugins/wayland-graphics-integration-server/libdrm-egl-server.so
+%{_libdir}/qt5/plugins/wayland-graphics-integration-server/libwayland-egl.so
 %endif
 
 %if "%{name}" == "qt5-qtwayland-xcomposite_egl"

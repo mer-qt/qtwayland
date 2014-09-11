@@ -1,0 +1,28 @@
+From 49f0918403eb2b160d2e089f20ec6e31649ba496 Mon Sep 17 00:00:00 2001
+From: Giulio Camuffo <giuliocamuffo@gmail.com>
+Date: Thu, 18 Sep 2014 11:01:18 +0300
+Subject: [PATCH] MER: Revert "The QWindowSystemInterface API changed, make it
+ build again"
+
+This reverts commit a7d9523c9cf731f3f6dd9424fc409eb315800153.
+---
+ src/client/qwaylandscreen.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/client/qwaylandscreen.cpp b/src/client/qwaylandscreen.cpp
+index 88667ae..bfac522 100644
+--- a/src/client/qwaylandscreen.cpp
++++ b/src/client/qwaylandscreen.cpp
+@@ -214,7 +214,8 @@ void QWaylandScreen::output_done()
+     // the done event is sent after all the geometry and the mode events are sent,
+     // and the last mode event to be sent is the active one, so we can trust the
+     // values of mGeometry and mRefreshRate here
+-    QWindowSystemInterface::handleScreenGeometryChange(screen(), mGeometry, mGeometry);
++    QWindowSystemInterface::handleScreenGeometryChange(screen(), mGeometry);
++    QWindowSystemInterface::handleScreenAvailableGeometryChange(screen(), mGeometry);
+     QWindowSystemInterface::handleScreenRefreshRateChange(screen(), refreshRate());
+ }
+ 
+-- 
+2.1.0
+

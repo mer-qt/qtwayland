@@ -1,0 +1,372 @@
+From a683f2ad07a4f43bfd18bbb2eb75db1ee6aadf7d Mon Sep 17 00:00:00 2001
+From: Giulio Camuffo <giuliocamuffo@gmail.com>
+Date: Thu, 11 Sep 2014 11:48:22 +0300
+Subject: [PATCH] MER: Revert "Support RasterGLSurface windows"
+
+Qt 5.2 does not have the RasterGLSurface window type
+This reverts commit b743fc7a1e6ee680ca89ae17fb6b521178fd09a9.
+
+Conflicts:
+	src/client/qwaylandwindow_p.h
+	src/hardwareintegration/client/wayland-egl/qwaylandeglwindow.cpp
+---
+ .../qwaylandclientbufferintegration_p.h            |  2 -
+ src/client/qwaylandintegration.cpp                 | 10 ++---
+ src/client/qwaylandshmbackingstore.cpp             | 47 ++++++++--------------
+ src/client/qwaylandshmbackingstore_p.h             |  7 +---
+ src/client/qwaylandshmwindow.cpp                   |  7 ++++
+ src/client/qwaylandshmwindow_p.h                   | 13 ++++++
+ src/client/qwaylandwindow_p.h                      |  6 ---
+ .../qwaylandeglclientbufferintegration.cpp         | 20 +++------
+ .../qwaylandeglclientbufferintegration.h           |  1 -
+ 9 files changed, 48 insertions(+), 65 deletions(-)
+
+diff --git a/src/client/hardwareintegration/qwaylandclientbufferintegration_p.h b/src/client/hardwareintegration/qwaylandclientbufferintegration_p.h
+index bbe42eb..3d16ad7 100644
+--- a/src/client/hardwareintegration/qwaylandclientbufferintegration_p.h
++++ b/src/client/hardwareintegration/qwaylandclientbufferintegration_p.h
+@@ -62,8 +62,6 @@ public:
+ 
+     virtual void initialize(QWaylandDisplay *display) = 0;
+ 
+-    virtual bool isValid() const { return true; }
+-
+     virtual bool supportsThreadedOpenGL() const { return false; }
+     virtual bool supportsWindowDecoration() const { return false; }
+ 
+diff --git a/src/client/qwaylandintegration.cpp b/src/client/qwaylandintegration.cpp
+index d9bf82e..13d734f 100644
+--- a/src/client/qwaylandintegration.cpp
++++ b/src/client/qwaylandintegration.cpp
+@@ -42,9 +42,9 @@
+ #include "qwaylandintegration_p.h"
+ 
+ #include "qwaylanddisplay_p.h"
+-#include "qwaylandshmwindow_p.h"
+ #include "qwaylandinputcontext_p.h"
+ #include "qwaylandshmbackingstore_p.h"
++#include "qwaylandshmwindow_p.h"
+ #include "qwaylandnativeinterface_p.h"
+ #include "qwaylandclipboard_p.h"
+ #include "qwaylanddnd_p.h"
+@@ -160,18 +160,14 @@ bool QWaylandIntegration::hasCapability(QPlatformIntegration::Capability cap) co
+     case MultipleWindows:
+     case NonFullScreenWindows:
+         return true;
+-    case RasterGLSurface:
+-        return true;
+     default: return QPlatformIntegration::hasCapability(cap);
+     }
+ }
+ 
+ QPlatformWindow *QWaylandIntegration::createPlatformWindow(QWindow *window) const
+ {
+-    if ((window->surfaceType() == QWindow::OpenGLSurface || window->surfaceType() == QWindow::RasterGLSurface)
+-        && mDisplay->clientBufferIntegration())
++    if (window->surfaceType() == QWindow::OpenGLSurface && mDisplay->clientBufferIntegration())
+         return mDisplay->clientBufferIntegration()->createEglWindow(window);
+-
+     return new QWaylandShmWindow(window);
+ }
+ 
+@@ -257,7 +253,7 @@ QWaylandClientBufferIntegration *QWaylandIntegration::clientBufferIntegration()
+     if (!mClientBufferIntegrationInitialized)
+         const_cast<QWaylandIntegration *>(this)->initializeClientBufferIntegration();
+ 
+-    return mClientBufferIntegration && mClientBufferIntegration->isValid() ? mClientBufferIntegration : 0;
++    return mClientBufferIntegration;
+ }
+ 
+ QWaylandServerBufferIntegration *QWaylandIntegration::serverBufferIntegration() const
+diff --git a/src/client/qwaylandshmbackingstore.cpp b/src/client/qwaylandshmbackingstore.cpp
+index 14e1285..0677ed0 100644
+--- a/src/client/qwaylandshmbackingstore.cpp
++++ b/src/client/qwaylandshmbackingstore.cpp
+@@ -39,12 +39,14 @@
+ **
+ ****************************************************************************/
+ #include "qwaylandshmbackingstore_p.h"
+-#include "qwaylandwindow_p.h"
++
++#include <QtCore/qdebug.h>
++
+ #include "qwaylanddisplay_p.h"
++#include "qwaylandshmwindow_p.h"
+ #include "qwaylandscreen_p.h"
+ #include "qwaylanddecoration_p.h"
+ 
+-#include <QtCore/qdebug.h>
+ #include <QtGui/QPainter>
+ 
+ #include <wayland-client.h>
+@@ -154,7 +156,9 @@ QWaylandShmBackingStore::~QWaylandShmBackingStore()
+ 
+ QPaintDevice *QWaylandShmBackingStore::paintDevice()
+ {
+-    return contentSurface();
++    if (!windowDecoration())
++        return mBackBuffer->image();
++    return mBackBuffer->imageInsideMargins(windowDecorationMargins());
+ }
+ 
+ void QWaylandShmBackingStore::beginPaint(const QRegion &)
+@@ -162,11 +166,13 @@ void QWaylandShmBackingStore::beginPaint(const QRegion &)
+     mPainting = true;
+     ensureSize();
+ 
+-    QWaylandWindow *window = waylandWindow();
+-    if (window->attached() && mBackBuffer == window->attached() && mFrameCallback)
+-        window->waitForFrameSync();
++    if (waylandWindow()->attached() && mBackBuffer == waylandWindow()->attached() && mFrameCallback) {
++        QWaylandShmWindow *waylandWindow = static_cast<QWaylandShmWindow *>(window()->handle());
++        Q_ASSERT(waylandWindow->windowType() == QWaylandWindow::Shm);
++        waylandWindow->waitForFrameSync();
++    }
+ 
+-    window->setCanResize(false);
++    waylandWindow()->setCanResize(false);
+ }
+ 
+ void QWaylandShmBackingStore::endPaint()
+@@ -184,15 +190,9 @@ void QWaylandShmBackingStore::ensureSize()
+ 
+ void QWaylandShmBackingStore::flush(QWindow *window, const QRegion &region, const QPoint &offset)
+ {
+-    // Invoked when the window is of type RasterSurface or when the window is
+-    // RasterGLSurface and there are no child widgets requiring OpenGL composition.
+-
+-    // For the case of RasterGLSurface + having to compose, the composeAndFlush() is
+-    // called instead. The default implementation from QPlatformBackingStore is sufficient
+-    // however so no need to reimplement that.
+-
+     Q_UNUSED(window);
+     Q_UNUSED(offset);
++    Q_ASSERT(waylandWindow()->windowType() == QWaylandWindow::Shm);
+ 
+     if (windowDecoration() && windowDecoration()->isDirty())
+         updateDecorations();
+@@ -260,11 +260,6 @@ QImage *QWaylandShmBackingStore::entireSurface() const
+     return mBackBuffer->image();
+ }
+ 
+-QImage *QWaylandShmBackingStore::contentSurface() const
+-{
+-    return windowDecoration() ? mBackBuffer->imageInsideMargins(windowDecorationMargins()) : mBackBuffer->image();
+-}
+-
+ void QWaylandShmBackingStore::updateDecorations()
+ {
+     QPainter decorationPainter(entireSurface());
+@@ -307,19 +302,11 @@ QMargins QWaylandShmBackingStore::windowDecorationMargins() const
+     return QMargins();
+ }
+ 
+-QWaylandWindow *QWaylandShmBackingStore::waylandWindow() const
++QWaylandShmWindow *QWaylandShmBackingStore::waylandWindow() const
+ {
+-    return static_cast<QWaylandWindow *>(window()->handle());
++    return static_cast<QWaylandShmWindow *>(window()->handle());
+ }
+ 
+-QImage QWaylandShmBackingStore::toImage() const
+-{
+-    // Invoked from QPlatformBackingStore::composeAndFlush() that is called
+-    // instead of flush() for widgets that have renderToTexture children
+-    // (QOpenGLWidget, QQuickWidget).
+-
+-    return *contentSurface();
+-}
+ 
+ void QWaylandShmBackingStore::done(void *data, wl_callback *callback, uint32_t time)
+ {
+@@ -328,7 +315,7 @@ void QWaylandShmBackingStore::done(void *data, wl_callback *callback, uint32_t t
+             static_cast<QWaylandShmBackingStore *>(data);
+     if (callback != self->mFrameCallback) // others, like QWaylandWindow, may trigger callbacks too
+         return;
+-    QWaylandWindow *window = self->waylandWindow();
++    QWaylandShmWindow *window = self->waylandWindow();
+     wl_callback_destroy(self->mFrameCallback);
+     self->mFrameCallback = 0;
+ 
+diff --git a/src/client/qwaylandshmbackingstore_p.h b/src/client/qwaylandshmbackingstore_p.h
+index 33f363f..6097b52 100644
+--- a/src/client/qwaylandshmbackingstore_p.h
++++ b/src/client/qwaylandshmbackingstore_p.h
+@@ -52,7 +52,7 @@ QT_BEGIN_NAMESPACE
+ 
+ class QWaylandDisplay;
+ class QWaylandDecoration;
+-class QWaylandWindow;
++class QWaylandShmWindow;
+ 
+ class Q_WAYLAND_CLIENT_EXPORT QWaylandShmBuffer : public QWaylandBuffer {
+ public:
+@@ -87,14 +87,11 @@ public:
+ 
+     QMargins windowDecorationMargins() const;
+     QImage *entireSurface() const;
+-    QImage *contentSurface() const;
+     void ensureSize();
+ 
+-    QWaylandWindow *waylandWindow() const;
++    QWaylandShmWindow *waylandWindow() const;
+     void iterateBuffer();
+ 
+-    QImage toImage() const Q_DECL_OVERRIDE;
+-
+ private:
+     void updateDecorations();
+ 
+diff --git a/src/client/qwaylandshmwindow.cpp b/src/client/qwaylandshmwindow.cpp
+index 431ed2f..de87682 100644
+--- a/src/client/qwaylandshmwindow.cpp
++++ b/src/client/qwaylandshmwindow.cpp
+@@ -51,11 +51,13 @@ QT_BEGIN_NAMESPACE
+ 
+ QWaylandShmWindow::QWaylandShmWindow(QWindow *window)
+     : QWaylandWindow(window)
++    , mBackingStore(0)
+ {
+ }
+ 
+ QWaylandShmWindow::~QWaylandShmWindow()
+ {
++
+ }
+ 
+ QWaylandWindow::WindowType QWaylandShmWindow::windowType() const
+@@ -63,4 +65,9 @@ QWaylandWindow::WindowType QWaylandShmWindow::windowType() const
+     return QWaylandWindow::Shm;
+ }
+ 
++void QWaylandShmWindow::setBackingStore(QWaylandShmBackingStore *backingStore)
++{
++    mBackingStore = backingStore;
++}
++
+ QT_END_NAMESPACE
+diff --git a/src/client/qwaylandshmwindow_p.h b/src/client/qwaylandshmwindow_p.h
+index 47ee742..83479f3 100644
+--- a/src/client/qwaylandshmwindow_p.h
++++ b/src/client/qwaylandshmwindow_p.h
+@@ -47,6 +47,8 @@
+ 
+ QT_BEGIN_NAMESPACE
+ 
++class QWaylandShmBackingStore;
++
+ class Q_WAYLAND_CLIENT_EXPORT QWaylandShmWindow : public QWaylandWindow
+ {
+ public:
+@@ -55,8 +57,19 @@ public:
+ 
+     WindowType windowType() const;
+     QSurfaceFormat format() const { return QSurfaceFormat(); }
++
++    void setBackingStore(QWaylandShmBackingStore *backingStore);
++    QWaylandShmBackingStore *backingStore() const;
++
++private:
++    QWaylandShmBackingStore *mBackingStore;
+ };
+ 
++inline QWaylandShmBackingStore *QWaylandShmWindow::backingStore() const
++{
++    return mBackingStore;
++}
++
+ QT_END_NAMESPACE
+ 
+ #endif // QWAYLANDSHMWINDOW_H
+diff --git a/src/client/qwaylandwindow_p.h b/src/client/qwaylandwindow_p.h
+index dbb0af2..0f1d622 100644
+--- a/src/client/qwaylandwindow_p.h
++++ b/src/client/qwaylandwindow_p.h
+@@ -63,7 +63,6 @@ class QWaylandSubSurface;
+ class QWaylandDecoration;
+ class QWaylandInputDevice;
+ class QWaylandScreen;
+-class QWaylandShmBackingStore;
+ 
+ class Q_WAYLAND_CLIENT_EXPORT QWaylandWindowConfigure
+ {
+@@ -184,9 +183,6 @@ public:
+     QVariant property(const QString &name);
+     QVariant property(const QString &name, const QVariant &defaultValue);
+ 
+-    void setBackingStore(QWaylandShmBackingStore *backingStore) { mBackingStore = backingStore; }
+-    QWaylandShmBackingStore *backingStore() const { return mBackingStore; }
+-
+     bool setKeyboardGrabEnabled(bool) Q_DECL_OVERRIDE { return false; }
+     void propagateSizeHints() Q_DECL_OVERRIDE { }
+ 
+@@ -227,8 +223,6 @@ protected:
+ 
+     Qt::WindowState mState;
+ 
+-    QWaylandShmBackingStore *mBackingStore;
+-
+ private:
+     bool setWindowStateInternal(Qt::WindowState flags);
+     void setGeometry_helper(const QRect &rect);
+diff --git a/src/hardwareintegration/client/wayland-egl/qwaylandeglclientbufferintegration.cpp b/src/hardwareintegration/client/wayland-egl/qwaylandeglclientbufferintegration.cpp
+index 89ccd93..1f5157d 100644
+--- a/src/hardwareintegration/client/wayland-egl/qwaylandeglclientbufferintegration.cpp
++++ b/src/hardwareintegration/client/wayland-egl/qwaylandeglclientbufferintegration.cpp
+@@ -57,7 +57,6 @@ static const char *qwaylandegl_threadedgl_blacklist_vendor[] = {
+ 
+ QWaylandEglClientBufferIntegration::QWaylandEglClientBufferIntegration()
+     : m_waylandDisplay(0)
+-    , m_eglDisplay(EGL_NO_DISPLAY)
+     , m_supportsThreading(false)
+ {
+     qDebug() << "Using Wayland-EGL";
+@@ -80,15 +79,13 @@ void QWaylandEglClientBufferIntegration::initialize(QWaylandDisplay *display)
+ 
+     EGLint major,minor;
+     m_eglDisplay = eglGetDisplay((EGLNativeDisplayType) m_waylandDisplay);
+-    if (m_eglDisplay == EGL_NO_DISPLAY) {
++    if (m_eglDisplay == NULL) {
+         qWarning("EGL not available");
+-        return;
+-    }
+-
+-    if (!eglInitialize(m_eglDisplay, &major, &minor)) {
+-        qWarning("failed to initialize EGL display");
+-        m_eglDisplay = EGL_NO_DISPLAY;
+-        return;
++    } else {
++        if (!eglInitialize(m_eglDisplay, &major, &minor)) {
++            qWarning("failed to initialize EGL display");
++            return;
++        }
+     }
+ 
+     m_supportsThreading = true;
+@@ -104,11 +101,6 @@ void QWaylandEglClientBufferIntegration::initialize(QWaylandDisplay *display)
+     }
+ }
+ 
+-bool QWaylandEglClientBufferIntegration::isValid() const
+-{
+-    return m_eglDisplay != EGL_NO_DISPLAY;
+-}
+-
+ bool QWaylandEglClientBufferIntegration::supportsThreadedOpenGL() const
+ {
+     return m_supportsThreading;
+diff --git a/src/hardwareintegration/client/wayland-egl/qwaylandeglclientbufferintegration.h b/src/hardwareintegration/client/wayland-egl/qwaylandeglclientbufferintegration.h
+index 9d3d150..f0b4fd9 100644
+--- a/src/hardwareintegration/client/wayland-egl/qwaylandeglclientbufferintegration.h
++++ b/src/hardwareintegration/client/wayland-egl/qwaylandeglclientbufferintegration.h
+@@ -58,7 +58,6 @@ public:
+     ~QWaylandEglClientBufferIntegration();
+ 
+     void initialize(QWaylandDisplay *display) Q_DECL_OVERRIDE;
+-    bool isValid() const Q_DECL_OVERRIDE;
+     bool supportsThreadedOpenGL() const Q_DECL_OVERRIDE;
+     bool supportsWindowDecoration() const Q_DECL_OVERRIDE;
+ 
+-- 
+2.1.0
+

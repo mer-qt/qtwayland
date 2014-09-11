@@ -8,16 +8,14 @@ License:    LGPLv2.1 with exception or GPLv3
 URL:        http://qt.nokia.com
 Source0:    %{name}-%{version}.tar.bz2
 Source100:	precheckin.sh
-BuildRequires:  pkgconfig(Qt5Core)
-BuildRequires:  pkgconfig(Qt5Gui)
-BuildRequires:  pkgconfig(Qt5Widgets)
-BuildRequires:  pkgconfig(Qt5OpenGL)
-BuildRequires:  pkgconfig(Qt5PlatformSupport)
-BuildRequires:  pkgconfig(Qt5Qml)
-BuildRequires:  pkgconfig(Qt5Quick)
-BuildRequires:  pkgconfig(Qt5DBus)
-
-BuildRequires:  pkgconfig(wayland-client)
+BuildRequires:  pkgconfig(Qt5Core) >= 5.2.1
+BuildRequires:  pkgconfig(Qt5Gui) >= 5.2.1
+BuildRequires:  pkgconfig(Qt5PlatformSupport) >= 5.2.1
+BuildRequires:  pkgconfig(Qt5Qml) >= 5.2.1
+BuildRequires:  pkgconfig(Qt5Quick) >= 5.2.1
+BuildRequires:  pkgconfig(Qt5DBus) >= 5.2.1
+BuildRequires:  pkgconfig(wayland-server) >= 1.2.0
+BuildRequires:  pkgconfig(wayland-client) >= 1.2.0
 %if "%{name}" == "qt5-qtwayland-xcomposite_egl"
 BuildRequires:  pkgconfig(wayland-egl)
 %endif
@@ -28,6 +26,10 @@ BuildRequires:  libffi-devel
 BuildRequires:  fdupes
 
 Requires:       xkeyboard-config
+
+Patch0: 0001-MER-HACK-Don-t-use-QWaylandInputContext.patch
+Patch1: 0001-MER-Revert-Support-RasterGLSurface-windows.patch
+Patch2: 0001-MER-Revert-The-QWindowSystemInterface-API-changed-ma.patch
 
 %description
 Qt is a cross-platform application and UI framework. Using Qt, you can
@@ -62,16 +64,22 @@ This package contains the Qt wayland compositor examples for xcomposite_egl
 
 %prep
 %setup -q -n %{name}-%{version}
+cd qtwayland
+%patch0 -p1
+%patch1 -p1
+%patch2 -p1
 
 %build
+cd qtwayland
 export QTDIR=/usr/share/qt5
 export QT_WAYLAND_GL_CONFIG=xcomposite_egl
 touch .git
-%qmake5 "QT_BUILD_PARTS += examples" "CONFIG += wayland-compositor" 
+%qmake5 "QT_BUILD_PARTS += examples" "CONFIG += wayland-compositor"
 
 make %{?_smp_mflags}
 
 %install
+cd qtwayland
 rm -rf %{buildroot}
 %qmake_install
 
@@ -86,8 +94,8 @@ find %{buildroot}%{_libdir} -type f -name '*.prl' \
 
 # We don't need qt5/Qt/
 rm -rf %{buildroot}/%{_includedir}/qt5/Qt
-rm -f %{buildroot}/%{_libdir}/qt5/plugins/wayland-graphics-integration/server/liblibhybris-egl-server.so
-rm -f %{buildroot}/%{_libdir}/qt5/plugins/wayland-graphics-integration/client/liblibhybris-egl-server.so
+rm -f %{buildroot}/%{_libdir}/qt5/plugins/wayland-graphics-integration-server/liblibhybris-egl-server.so
+rm -f %{buildroot}/%{_libdir}/qt5/plugins/wayland-graphics-integration-client/liblibhybris-egl-server.so
 
 
 %fdupes %{buildroot}/%{_includedir}
@@ -105,10 +113,10 @@ rm -f %{buildroot}/%{_libdir}/qt5/plugins/wayland-graphics-integration/client/li
 
 %if "%{name}" == "qt5-qtwayland-xcomposite_egl"
 %{_libdir}/qt5/plugins/platforms/libqwayland-egl.so
-%{_libdir}/qt5/plugins/wayland-graphics-integration/client/libdrm-egl-server.so
-%{_libdir}/qt5/plugins/wayland-graphics-integration/client/libwayland-egl.so
-%{_libdir}/qt5/plugins/wayland-graphics-integration/server/libdrm-egl-server.so
-%{_libdir}/qt5/plugins/wayland-graphics-integration/server/libwayland-egl.so
+%{_libdir}/qt5/plugins/wayland-graphics-integration-client/libdrm-egl-server.so
+%{_libdir}/qt5/plugins/wayland-graphics-integration-client/libwayland-egl.so
+%{_libdir}/qt5/plugins/wayland-graphics-integration-server/libdrm-egl-server.so
+%{_libdir}/qt5/plugins/wayland-graphics-integration-server/libwayland-egl.so
 %endif
 
 %if "%{name}" == "qt5-qtwayland-xcomposite_egl"
