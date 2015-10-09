@@ -109,12 +109,13 @@ public:
 
     void invalidateTexture()
     {
-        if (bufferRef)
+        if (bufferRef && nextBuffer) {
             bufferRef.destroyTexture();
+            bufferRef = QWaylandBufferRef();
+        }
         delete texture;
         texture = 0;
         update = true;
-        bufferRef = QWaylandBufferRef();
     }
 
     QWaylandQuickSurface *surface;
