@@ -134,6 +134,7 @@ static const uint32_t KeyTbl[] = {
     XKB_KEY_XF86AudioMute,           Qt::Key_VolumeMute,
 
     XKB_KEY_XF86Phone,               Qt::Key_ToggleCallHangup,
+    XKB_KEY_XF86AudioMedia,          Qt::Key_ToggleCallHangup,
 
     0,                          0
 };
